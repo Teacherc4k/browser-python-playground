@@ -48,7 +48,7 @@
 <body>
   <h1>Browser Python Playground</h1>
 
-  <!-- Code editor container -->
+  <!-- Code editor -->
   <div id="editor"></div>
 
   <!-- Run button -->
@@ -63,39 +63,37 @@
   <canvas id="mycanvas" width="300" height="300"></canvas>
 
   <script>
-    // 1) Initialize CodeMirror
+    // Initialize CodeMirror
     const editor = CodeMirror(document.getElementById('editor'), {
       mode: 'python',
       lineNumbers: true,
       value: `print("Hello, world!")\nfrom turtle import *\nforward(100)\n`
     });
 
-    // 2) Skulpt output handler
+    // Skulpt output handler
     function outf(text) {
-      const outEl = document.getElementById('output');
-      outEl.textContent += text;
+      document.getElementById('output').textContent += text;
     }
 
-    // 3) Skulpt file reader for stdlib
+    // Skulpt file reader for stdlib
     function builtinRead(x) {
-      if (Sk.builtinFiles === undefined || Sk.builtinFiles["files"][x] === undefined) {
+      if (Sk.builtinFiles === undefined ||
+          Sk.builtinFiles["files"][x] === undefined) {
         throw "File not found: '" + x + "'";
       }
       return Sk.builtinFiles["files"][x];
     }
 
-    // 4) Run Python code from editor
+    // Run Python code from the editor
     async function runPython() {
-      // get code
       const code = editor.getValue();
 
-      // clear previous output and canvas
+      // Clear previous output and canvas
       document.getElementById('output').textContent = '';
       const canvas = document.getElementById('mycanvas');
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
 
-      // configure Skulpt
+      // Configure Skulpt
       Sk.configure({
         output: outf,
         read: builtinRead,
@@ -103,7 +101,7 @@
       });
       Sk.canvas = "mycanvas";
 
-      // execute
+      // Execute
       try {
         await Sk.misceval.asyncToPromise(() =>
           Sk.importMainWithBody("<stdin>", false, code, true)
