@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Browser Python Playground</title>
+  <!-- CodeMirror CSS & JS -->
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/python/python.min.js"></script>
+  <!-- Skulpt -->
+  <script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt-stdlib.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 1em; }
+    #editor { height: 200px; border: 1px solid #ccc; }
+    #output { background:#222; color:#0f0; padding:1em; min-height:80px; }
+    #mycanvas { border:1px solid #444; width:300px; height:300px; }
+  </style>
+</head>
+<body>
+  <h1>Browser Python Playground</h1>
+  <div id="editor"></div>
+  <button onclick="runPython()">Run</button>
+  <h3>Console:</h3>
+  <pre id="output"></pre>
+  <h3>Turtle Graphics:</h3>
+  <canvas id="mycanvas"></canvas>
+
+  <script>
+    // 1) Init CodeMirror
+    const editor = CodeMirror(document.getElementById('editor'), {
+      mode: 'python',
+      lineNumbers: true,
+      value: `print("Hello, world!")\nfrom turtle import *\nforward(100)\n`
+    });
+
+    // 2) Skulpt helpers
+    function outf(text) {
+      document.getElementById('output').textContent += text;
+    }
+    function builtinRead(x) {
+      if (Sk.builtinFiles === undefined ||
+          Sk.builtinFiles["files"][x] === undefined)
+        throw "File not found: '" + x + "'";
+      return Sk.builtinFiles["files"][x];
+    }
+
+    // 3) Run code
+    async function runPython() {
+      const code = editor.getValue();
+      document.getElementById('output').textContent = '';
+      const canvas = document.getElementById('mycanvas');
+      canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+
+      Sk.configure({output: outf, read: builtinRead, __future__: Sk.python3});
+      Sk.canvas = "mycanvas";
+
+      try {
+        await Sk.misceval.asyncToPromise(() =>
+          Sk.importMainWithBody("<stdin>", false, code, true)
+        );
+      } catch (err) {
+        outf(err.toString());
+      }
+    }
+  </script>
+</body>
+</html>
