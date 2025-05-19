@@ -1,61 +1,109 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <title>Browser Python Playground</title>
+
   <!-- CodeMirror CSS & JS -->
   <link rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
+        href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/python/python.min.js"></script>
-  <!-- Skulpt -->
+
+  <!-- Skulpt (Python interpreter in JS) -->
   <script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt-stdlib.js"></script>
+
   <style>
-    body { font-family: sans-serif; margin: 1em; }
-    #editor { height: 200px; border: 1px solid #ccc; }
-    #output { background:#222; color:#0f0; padding:1em; min-height:80px; }
-    #mycanvas { border:1px solid #444; width:300px; height:300px; }
+    body {
+      font-family: sans-serif;
+      margin: 1em;
+    }
+    #editor {
+      height: 200px;
+      border: 1px solid #ccc;
+    }
+    button {
+      margin-top: 0.5em;
+      padding: 0.5em 1em;
+      font-size: 1em;
+    }
+    #output {
+      background: #222;
+      color: #0f0;
+      padding: 1em;
+      min-height: 80px;
+      margin-top: 1em;
+      white-space: pre-wrap;
+    }
+    #mycanvas {
+      border: 1px solid #444;
+      display: block;
+      margin-top: 1em;
+      width: 300px;
+      height: 300px;
+    }
   </style>
 </head>
 <body>
   <h1>Browser Python Playground</h1>
+
+  <!-- Code editor container -->
   <div id="editor"></div>
+
+  <!-- Run button -->
   <button onclick="runPython()">Run</button>
+
+  <!-- Console output -->
   <h3>Console:</h3>
   <pre id="output"></pre>
+
+  <!-- Turtle graphics canvas -->
   <h3>Turtle Graphics:</h3>
-  <canvas id="mycanvas"></canvas>
+  <canvas id="mycanvas" width="300" height="300"></canvas>
 
   <script>
-    // 1) Init CodeMirror
+    // 1) Initialize CodeMirror
     const editor = CodeMirror(document.getElementById('editor'), {
       mode: 'python',
       lineNumbers: true,
       value: `print("Hello, world!")\nfrom turtle import *\nforward(100)\n`
     });
 
-    // 2) Skulpt helpers
+    // 2) Skulpt output handler
     function outf(text) {
-      document.getElementById('output').textContent += text;
+      const outEl = document.getElementById('output');
+      outEl.textContent += text;
     }
+
+    // 3) Skulpt file reader for stdlib
     function builtinRead(x) {
-      if (Sk.builtinFiles === undefined ||
-          Sk.builtinFiles["files"][x] === undefined)
+      if (Sk.builtinFiles === undefined || Sk.builtinFiles["files"][x] === undefined) {
         throw "File not found: '" + x + "'";
+      }
       return Sk.builtinFiles["files"][x];
     }
 
-    // 3) Run code
+    // 4) Run Python code from editor
     async function runPython() {
+      // get code
       const code = editor.getValue();
+
+      // clear previous output and canvas
       document.getElementById('output').textContent = '';
       const canvas = document.getElementById('mycanvas');
-      canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      Sk.configure({output: outf, read: builtinRead, __future__: Sk.python3});
+      // configure Skulpt
+      Sk.configure({
+        output: outf,
+        read: builtinRead,
+        __future__: Sk.python3
+      });
       Sk.canvas = "mycanvas";
 
+      // execute
       try {
         await Sk.misceval.asyncToPromise(() =>
           Sk.importMainWithBody("<stdin>", false, code, true)
