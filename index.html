@@ -1,115 +1,144 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Browser Python Playground</title>
+  <meta charset="utf-8"/>
+  <title>Python Pathway Demo</title>
 
-  <!-- CodeMirror CSS & JS -->
+  <!-- CodeMirror -->
   <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
+        href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/python/python.min.js"></script>
 
-  <!-- Skulpt (Python interpreter in JS) -->
+  <!-- Skulpt -->
   <script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/skulpt@1.2.0/dist/skulpt-stdlib.js"></script>
 
   <style>
-    body {
-      font-family: sans-serif;
-      margin: 1em;
-    }
-    #editor {
-      height: 200px;
-      border: 1px solid #ccc;
-    }
-    button {
-      margin-top: 0.5em;
-      padding: 0.5em 1em;
-      font-size: 1em;
-    }
-    #output {
-      background: #222;
-      color: #0f0;
-      padding: 1em;
-      min-height: 80px;
-      margin-top: 1em;
-      white-space: pre-wrap;
-    }
-    #mycanvas {
-      border: 1px solid #444;
-      display: block;
-      margin-top: 1em;
-      width: 300px;
-      height: 300px;
-    }
+    body { font-family:sans-serif; padding:1em; }
+    .instructions { background:#eef; padding:1em; border-radius:4px; }
+    .choices button { margin-right:0.5em; margin-top:0.5em; }
+    #editor { border:1px solid #ccc; height:4em; }
+    #output { background:#222; color:#0f0; padding:1em; min-height:3em; }
+    #canvas { border:1px solid #444; width:200px; height:200px; display:block; margin-top:1em; }
+    .controls { margin-top:1em; }
   </style>
 </head>
 <body>
-  <h1>Browser Python Playground</h1>
+  <h1>Learn how to write some Python</h1>
 
-  <!-- Code editor -->
-  <div id="editor"></div>
+  <div class="instructions" id="instr"></div>
 
-  <!-- Run button -->
-  <button onclick="runPython()">Run</button>
+  <div class="choices" id="choices"></div>
 
-  <!-- Console output -->
-  <h3>Console:</h3>
+  <div class="code-box">
+    <label for="code">Complete the code:</label>
+    <textarea id="editor"></textarea>
+  </div>
+
+  <div class="controls">
+    <button id="runBtn">Run code ►</button>
+    <button id="prevBtn">← Back</button>
+    <button id="nextBtn">Next →</button>
+  </div>
+
+  <h3>Code output:</h3>
   <pre id="output"></pre>
 
-  <!-- Turtle graphics canvas -->
-  <h3>Turtle Graphics:</h3>
-  <canvas id="mycanvas" width="300" height="300"></canvas>
+  <h3>Turtle canvas:</h3>
+  <canvas id="canvas"></canvas>
 
   <script>
-    // Initialize CodeMirror
-    const editor = CodeMirror(document.getElementById('editor'), {
-      mode: 'python',
-      lineNumbers: true,
-      value: `print("Hello, world!")\nfrom turtle import *\nforward(100)\n`
+  // --- 1) Define your steps (could load from external JSON) ---
+  const steps = [
+    {
+      instr: `You’re going to build a painting app!<br>
+              We need to tell the computer where to put the first button.<br>
+              These numbers are called x and y coordinates.`,
+      template: `pos_1 = `,
+      options: ["(20, 20)", "(400, 20)", "(20, 150)", "(400, 150)"]
+    },
+    {
+      instr: `Now let's draw a circle at pos_1.`,
+      template:
+`pos_1 = {LAST_ANSWER}
+circle(pos_1[0], pos_1[1], 20)`,
+      options: []
+    },
+    // …add more steps…
+  ];
+
+  let current = 0;
+  let answers = [];
+
+  // --- 2) Initialize CodeMirror ---
+  const editor = CodeMirror.fromTextArea(
+    document.getElementById('editor'),
+    {mode:'python', lineNumbers:false, theme:'default'}
+  );
+
+  // --- 3) Instruction + choices renderer ---
+  function renderStep() {
+    const step = steps[current];
+    document.getElementById('instr').innerHTML = `<strong>Step ${current+1}:</strong> ${step.instr}`;
+    // render choices
+    const cdiv = document.getElementById('choices');
+    cdiv.innerHTML = '';
+    step.options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.textContent = opt;
+      btn.onclick = ()=> {
+        editor.setValue(step.template.replace('{LAST_ANSWER}', opt));
+      };
+      cdiv.appendChild(btn);
     });
+    // load previous or template
+    const prev = answers[current] || '';
+    editor.setValue(prev || step.template.replace('{LAST_ANSWER}',''));
+    document.getElementById('output').textContent = '';
+    document.getElementById('canvas').getContext('2d').clearRect(0,0,200,200);
+  }
 
-    // Skulpt output handler
-    function outf(text) {
-      document.getElementById('output').textContent += text;
-    }
+  // --- 4) Navigation buttons ---
+  document.getElementById('nextBtn').onclick = ()=>{
+    answers[current] = editor.getValue();
+    if(current < steps.length-1) current++;
+    renderStep();
+  };
+  document.getElementById('prevBtn').onclick = ()=>{
+    answers[current] = editor.getValue();
+    if(current>0) current--;
+    renderStep();
+  };
 
-    // Skulpt file reader for stdlib
-    function builtinRead(x) {
-      if (Sk.builtinFiles === undefined ||
-          Sk.builtinFiles["files"][x] === undefined) {
-        throw "File not found: '" + x + "'";
-      }
-      return Sk.builtinFiles["files"][x];
-    }
+  // --- 5) Skulpt setup & execute ---
+  function outf(text) {
+    document.getElementById('output').textContent += text;
+  }
+  function builtinRead(x) {
+    if (Sk.builtinFiles === undefined ||
+        Sk.builtinFiles["files"][x] === undefined)
+      throw "File not found: '" + x + "'";
+    return Sk.builtinFiles["files"][x];
+  }
+  async function runCode() {
+    const code = editor.getValue();
+    document.getElementById('output').textContent = '';
+    const ctx = document.getElementById('canvas').getContext('2d');
+    ctx.clearRect(0,0,200,200);
 
-    // Run Python code from the editor
-    async function runPython() {
-      const code = editor.getValue();
+    Sk.configure({output:outf, read:builtinRead, __future__:Sk.python3});
+    Sk.canvas = "canvas";
+    try {
+      await Sk.misceval.asyncToPromise(()=> 
+        Sk.importMainWithBody("<stdin>", false, code, true)
+      );
+    } catch(e) { outf(e.toString()); }
+  }
+  document.getElementById('runBtn').onclick = runCode;
 
-      // Clear previous output and canvas
-      document.getElementById('output').textContent = '';
-      const canvas = document.getElementById('mycanvas');
-      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-
-      // Configure Skulpt
-      Sk.configure({
-        output: outf,
-        read: builtinRead,
-        __future__: Sk.python3
-      });
-      Sk.canvas = "mycanvas";
-
-      // Execute
-      try {
-        await Sk.misceval.asyncToPromise(() =>
-          Sk.importMainWithBody("<stdin>", false, code, true)
-        );
-      } catch (err) {
-        outf(err.toString());
-      }
-    }
+  // Kick things off
+  renderStep();
   </script>
 </body>
 </html>
